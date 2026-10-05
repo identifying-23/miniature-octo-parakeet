@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f1a">
+<meta name="author" content="Lumin.Xeno">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>液态玻璃 · 天气时钟</title>
+<script>
+/* 提前读取主题，避免打开时闪屏 */
+try { document.documentElement.dataset.theme = localStorage.getItem("lgw_theme") || "dark"; } catch(e){}
+</script>
+<style>
+  /* ═════════ 主题变量 ═════════ */
+  :root{
+    color-scheme: light;
+    --bg1:#e9f1ff; --bg2:#efeaff; --bg3:#ffeef4;
+    --card: rgba(255,255,255,.5);
+    --card-solid:#f4f7ff;
+    --card-brd: rgba(255,255,255,.85);
+    --gloss: rgba(255,255,255,.75);
+    --text:#181a20; --sub:#5f6a85;
+    --accent:#0a84ff; --danger:#d93025;
+    --field: rgba(255,255,255,.55);
+    --field-brd: rgba(20,40,90,.12);
+    --divider: rgba(20,40,90,.1);
+    --bf: blur(26px) saturate(1.8) brightness(1.05);
+    --glass-shadow: 0 10px 30px -12px rgba(80,115,190,.35);
+    --card-shadow: 0 26px 60px -20px rgba(80,115,190,.38), 0 6px 18px rgba(80,115,190,.12),
+                   inset 0 1px 0 rgba(255,255,255,.8), inset 0 -14px 34px rgba(255,255,255,.35);
+    --card-shadow-hover: 0 34px 80px -22px rgba(80,115,190,.5), 0 8px 22px rgba(80,115,190,.16),
+                   inset 0 1px 0 rgba(255,255,255,.85), inset 0 -14px 34px rgba(255,255,255,.4);
+    --hover-shadow: rgba(80,115,190,.45);
+    --spot: rgba(255,255,255,.42);
+    --sheen: rgba(255,255,255,.32);
+    --shine-band: rgba(160,200,255,.40);
+    --ring: linear-gradient(135deg, rgba(255,255,255,.95), rgba(255,255,255,.28) 45%, rgba(255,255,255,.8));
+    --focus-ring: rgba(10,132,255,.22);
+    --item-hover: rgba(10,132,255,.08);
+    --item-active: rgba(10,132,255,.15);
+    --chip-active: rgba(10,132,255,.14);
+    --stick: rgba(244,247,255,.94);
+    --blob1:#7fb4ff; --blob2:#c9a7ff; --blob3:#ffb3d1; --blob4:#8fe3ff;
+    --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+  }
+  html[data-theme="dark"]{
+    color-scheme: dark;
+    --bg1:#0a0f1c; --bg2:#12172b; --bg3:#1c1435;
+    --card: rgba(22,28,48,.5);
+    --card-solid:#151b2d;
+    --card-brd: rgba(255,255,255,.13);
+    --gloss: rgba(255,255,255,.14);
+    --text:#f4f6ff; --sub:#9aa4bd;
+    --accent:#5ac8fa; --danger:#ff7b72;
+    --field: rgba(12,16,30,.4);
+    --field-brd: rgba(255,255,255,.1);
+    --divider: rgba(255,255,255,.09);
+    --bf: blur(26px) saturate(1.5) brightness(1.04);
+    --glass-shadow: 0 10px 30px -12px rgba(0,0,0,.55);
+    --card-shadow: 0 30px 70px -22px rgba(0,0,0,.7), 0 6px 20px rgba(0,0,0,.35),
+                   inset 0 1px 0 rgba(255,255,255,.16), inset 0 -16px 40px rgba(90,150,255,.06);
+    --card-shadow-hover: 0 38px 90px -24px rgba(0,0,0,.8), 0 8px 26px rgba(0,0,0,.4),
+                   inset 0 1px 0 rgba(255,255,255,.2), inset 0 -16px 40px rgba(90,150,255,.09);
+    --hover-shadow: rgba(0,0,0,.6);
+    --spot: rgba(255,255,255,.12);
+    --sheen: rgba(255,255,255,.10);
+    --shine-band: rgba(255,255,255,.15);
+    --ring: linear-gradient(135deg, rgba(255,255,255,.32), rgba(255,255,255,.06) 45%, rgba(255,255,255,.22));
+    --focus-ring: rgba(94,200,250,.25);
+    --item-hover: rgba(255,255,255,.06);
+    --item-active: rgba(90,200,250,.18);
+    --chip-active: rgba(90,200,250,.2);
+    --stick: rgba(16,21,36,.94);
+    --blob1:#1e5cff; --blob2:#7b2ff7; --blob3:#ff2d78; --blob4:#00d4ff;
+  }
+
+  *{ box-sizing:border-box; }
+  [hidden]{ display:none !important; }
+  html,body{ height:100%; }
+  body{
+    margin:0; color:var(--text); background:var(--bg1);
+    font-family:-apple-system,"PingFang SC","Noto Sans CJK SC","Source Han Sans SC",
+                "Microsoft YaHei",system-ui,"Segoe UI",Roboto,sans-serif;
+    -webkit-tap-highlight-color:transparent;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent); color:#fff; }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* ═════════ 液态玻璃背景 ═════════ */
+  .bg{ position:fixed; inset:0; z-index:0; overflow:hidden;
+       background:linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 52%, var(--bg3) 100%); }
+  .blob{ position:absolute; width:62vmax; height:62vmax; border-radius:50%;
+         filter:blur(70px); opacity:.6; }
+  .b1{ background:radial-gradient(circle at 32% 32%, var(--blob1) 0%, transparent 62%);
+       top:-22vmax; left:-18vmax; animation:drift1 26s ease-in-out infinite alternate; }
+  .b2{ background:radial-gradient(circle at 60% 42%, var(--blob2) 0%, transparent 62%);
+       bottom:-26vmax; right:-20vmax; animation:drift2 32s ease-in-out infinite alternate; }
+  .b3{ background:radial-gradient(circle at 50% 50%, var(--blob3) 0%, transparent 62%);
+       top:28%; left:32%; animation:drift3 38s ease-in-out infinite alternate; }
+  .b4{ width:46vmax; height:46vmax; top:-12vmax; right:-10vmax;
+       background:radial-gradient(circle at 50% 50%, var(--blob4) 0%, transparent 62%);
+       animation:drift4 30s ease-in-out infinite alternate; }
+  html[data-theme="dark"] .blob{ opacity:.4; }
+  @keyframes drift1{ to{ transform:translate(9vmax,7vmax) scale(1.12); } }
+  @keyframes drift2{ to{ transform:translate(-8vmax,-6vmax) scale(1.08); } }
+  @keyframes drift3{ to{ transform:translate(-6vmax,8vmax) scale(.94); } }
+  @keyframes drift4{ to{ transform:translate(-7vmax,5vmax) scale(1.1); } }
+
+  /* ═════════ 玻璃基础 ═════════ */
+  .glass{
+    background:var(--card);
+    -webkit-backdrop-filter:var(--bf);
+    backdrop-filter:var(--bf);
+    border:1px solid var(--card-brd);
+    box-shadow:var(--glass-shadow), inset 0 1px 0 var(--gloss);
+  }
+
+  .app{ position:relative; z-index:1; max-width:430px; margin:0 auto;
+        min-height:100vh; min-height:100svh; display:flex; flex-direction:column; gap:14px;
+        padding:calc(14px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom)); }
+
+  /* ═════════ 顶栏 ═════════ */
+  .topbar{ display:flex; gap:10px; align-items:center; }
+  .search{ flex:1; min-width:0; display:flex; align-items:center; gap:8px;
+           border-radius:999px; padding:6px 6px 6px 16px; transition:box-shadow .25s, border-color .25s; }
+  .search:focus-within{ border-color:var(--accent);
+           box-shadow:0 0 0 4px var(--focus-ring), var(--glass-shadow); }
+  .search input{ flex:1; min-width:0; border:0; outline:0; background:transparent;
+                 color:var(--text); font-size:15px; padding:8px 0; font-family:inherit;
+                 caret-color:var(--accent); }
+  .search input::placeholder{ color:var(--sub); }
+  .btn{ border:0; cursor:pointer; font-family:inherit; touch-action:manipulation;
+        -webkit-user-select:none; user-select:none; }
+  .btn-accent{ background:var(--accent); color:#fff; border-radius:999px;
+               padding:9px 16px; font-size:14px; font-weight:600;
+               transition:filter .2s, box-shadow .2s, transform .15s; }
+  .btn-accent:active{ transform:scale(.97); }
+  .btn-round{ width:46px; height:46px; border-radius:50%; display:grid; place-items:center;
+              font-size:19px; color:var(--text); flex-shrink:0;
+              transition:transform .2s, box-shadow .25s, border-color .25s; }
+
+  /* ═════════ 卡片 ═════════ */
+  .card{
+    position:relative; border:0; border-radius:30px; padding:22px;
+    background-color:var(--card);
+    background-image:var(--noise);
+    -webkit-backdrop-filter:var(--bf);
+    backdrop-filter:var(--bf);
+    box-shadow:var(--card-shadow);
+    transition:box-shadow .3s ease;
+  }
+  @supports ((mask-composite: exclude) or (-webkit-mask-composite: xor)){
+    .card::before{
+      content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
+      background:var(--ring); pointer-events:none;
+      -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite:xor;
+      mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite:exclude;
+    }
+  }
+  .card::after{
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:-1;
+    background:
+      radial-gradient(300px circle at var(--mx,50%) var(--my,8%), var(--spot), transparent 62%),
+      linear-gradient(118deg, var(--sheen) 0%, transparent 38%);
+  }
+  /* 液态扫光 */
+  .shine{ position:absolute; inset:0; border-radius:inherit; overflow:hidden;
+          pointer-events:none; z-index:-1; }
+  .shine::before{
+    content:""; position:absolute; top:-70%; bottom:-70%; left:0; width:45%;
+    background:linear-gradient(100deg, transparent 0%, var(--shine-band) 50%, transparent 100%);
+    transform:translateX(-230%) rotate(14deg); filter:blur(6px);
+    animation:sweep 8s ease-in-out infinite;
+  }
+  @keyframes sweep{
+    0%{ transform:translateX(-230%) rotate(14deg); }
+    52%{ transform:translateX(320%) rotate(14deg); }
+    100%{ transform:translateX(320%) rotate(14deg); }
+  }
+  @media (prefers-reduced-motion:reduce){ .shine::before{ animation:none; opacity:0; } }
+
+  /* 拖动把手(手机/电脑都显示) */
+  .grip{
+    position:absolute; top:10px; right:10px; width:32px; height:32px;
+    display:grid; place-items:center; border:0; border-radius:10px; padding:0;
+    background:transparent; color:var(--sub); opacity:.5; cursor:grab;
+    touch-action:none; z-index:5; -webkit-user-select:none; user-select:none;
+    transition:opacity .2s, background .2s;
+  }
+  .grip:active{ cursor:grabbing; opacity:.95; }
+  @media (hover:hover){ .grip:hover{ opacity:.9; background:var(--item-hover); } }
+  .card.dragging{ z-index:50; transition:none; box-shadow:var(--card-shadow-hover); }
+  .card.dragging::after{ opacity:.5; }
+  #clockCard.tz-open{ z-index:70; }
+
+  /* 桌面端倾斜 + 悬停 */
+  @media (hover:hover) and (pointer:fine){
+    .card{ transform:perspective(1000px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+           transition:transform .25s ease-out, box-shadow .3s ease; }
+    .card:hover{ box-shadow:var(--card-shadow-hover); }
+  }
+
+  /* 时钟卡片 */
+  #clockCard{ text-align:center; order:1; }
+  #weatherCard{ order:2; }
+  .foot{ order:3; }
+  .clock{ font-size:clamp(42px, 13.2vw, 54px); font-weight:700; letter-spacing:1px;
+          font-variant-numeric:tabular-nums; line-height:1.15;
+          font-family:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace; }
+  .colon{ animation:blink 1s steps(1,end) infinite; }
+  @keyframes blink{ 50%{ opacity:.12; } }
+  @media (prefers-reduced-motion:reduce){ .colon,.blob{ animation:none; } }
+  .date{ color:var(--sub); font-size:13.5px; margin-top:8px; }
+
+  /* ═════════ 时区面板 ═════════ */
+  .tz-block{ position:relative; margin-top:16px; padding-top:14px;
+             border-top:1px solid var(--divider); }
+  .tzrow{ display:flex; align-items:center; gap:10px; }
+  .tzrow label{ color:var(--sub); font-size:13px; flex-shrink:0; }
+  .tz-field{ flex:1; min-width:0; display:flex; align-items:center; gap:8px;
+             justify-content:space-between; border:1px solid var(--field-brd);
+             background:var(--field); color:var(--text); border-radius:14px;
+             padding:9px 12px; font:inherit; font-size:13.5px; cursor:pointer;
+             text-align:left; transition:border-color .2s, box-shadow .2s; }
+  .tz-field #tzLabel{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tz-field:focus-visible, .tz-field[aria-expanded="true"]{
+             border-color:var(--accent); box-shadow:0 0 0 3px var(--focus-ring); }
+  .tz-field .caret{ color:var(--sub); font-size:12px;
+             transition:transform .25s; flex-shrink:0; }
+  .tz-field[aria-expanded="true"] .caret{ transform:rotate(180deg); }
+
+  .tz-panel{
+    position:absolute; top:calc(100% + 10px); left:0; right:0; z-index:60;
+    border-radius:24px; padding:12px 10px 10px;
+    box-shadow:var(--card-shadow), inset 0 1px 0 var(--gloss);
+    max-height:min(60vh, 430px); display:flex; flex-direction:column;
+    transform-origin:top center;
+    opacity:0; transform:translateY(-10px) scale(.96);
+    visibility:hidden; pointer-events:none;
+    transition:opacity .22s ease, transform .3s cubic-bezier(.22,1.15,.36,1), visibility .3s;
+  }
+  .tz-panel.open{ opacity:1; transform:none; visibility:visible; pointer-events:auto; }
+
+  .tz-head{ display:flex; gap:8px; align-items:center; padding:2px 4px 10px; }
+  .tz-search{ flex:1; min-width:0; display:flex; align-items:center; gap:8px;
+    border:1px solid var(--field-brd); background:var(--field);
+    border-radius:12px; padding:8px 10px; transition:border-color .2s, box-shadow .2s; }
+  .tz-search:focus-within{ border-color:var(--accent); box-shadow:0 0 0 3px var(--focus-ring); }
+  .tz-search-ico{ color:var(--sub); flex-shrink:0; }
+  .tz-search input{ flex:1; min-width:0; border:0; outline:0; background:transparent;
+    color:var(--text); font:inherit; font-size:13.5px; caret-color:var(--accent); padding:2px 0; }
+  .tz-search input::placeholder{ color:var(--sub); }
+  .tz-clear{ border:0; background:var(--item-hover); color:var(--sub);
+    width:20px; height:20px; border-radius:50%; font-size:11px;
+    display:grid; place-items:center; cursor:pointer; flex-shrink:0; padding:0; }
+  .tz-done{ border:0; background:transparent; color:var(--accent); font:inherit;
+    font-size:13.5px; font-weight:600; padding:6px; cursor:pointer; flex-shrink:0; }
+
+  .tz-list{ position:relative; flex:1; min-height:0; overflow-y:auto;
+    -webkit-overflow-scrolling:touch; padding:2px; }
+  .tz-list::-webkit-scrollbar{ width:6px; }
+  .tz-list::-webkit-scrollbar-thumb{ background:var(--field-brd); border-radius:3px; }
+
+  .tz-group{ position:sticky; top:0; z-index:3;
+    font-size:11px; color:var(--sub); letter-spacing:.6px;
+    padding:8px 10px 5px;
+    background:linear-gradient(180deg, var(--stick) 70%, transparent); }
+  .tz-item{ display:flex; width:100%; align-items:center; justify-content:space-between;
+    gap:10px; background:transparent; border:0; border-radius:14px; color:var(--text);
+    font:inherit; padding:10px 12px; cursor:pointer; text-align:left;
+    -webkit-user-select:none; user-select:none; transition:background .18s; }
+  .tz-meta{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .tz-name{ font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tz-sub{ font-size:11px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tz-side{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .tz-off{ font-size:11.5px; color:var(--sub); background:var(--item-hover);
+    padding:3px 8px; border-radius:999px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .tz-check{ width:20px; text-align:center; color:var(--accent); font-weight:700;
+    font-size:14px; opacity:0; transform:scale(.6);
+    transition:opacity .2s, transform .25s cubic-bezier(.22,1.4,.4,1); }
+  .tz-item.active{ background:var(--item-active); }
+  .tz-item.active .tz-name{ font-weight:600; }
+  .tz-item.active .tz-off{ background:var(--chip-active); color:var(--accent); }
+  .tz-item.active .tz-check{ opacity:1; transform:scale(1); }
+  @media (hover:hover){ .tz-item:hover{ background:var(--item-hover); } }
+  .tz-item:active{ background:var(--item-hover); }
+  .tz-empty{ padding:22px 10px; text-align:center; color:var(--sub); font-size:13px; }
+
+  /* 天气卡片 */
+  .wtop{ display:flex; align-items:center; gap:10px; padding-right:30px; }
+  .wicon{ font-size:30px; line-height:1; }
+  .wcond{ font-size:17px; font-weight:600; }
+  .wcity{ margin-left:auto; color:var(--sub); font-size:12.5px; max-width:46%;
+          overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .temp{ font-size:54px; font-weight:700; text-align:center; margin-top:10px;
+         font-variant-numeric:tabular-nums; line-height:1.1; }
+  .tempf{ text-align:center; color:var(--sub); font-size:14.5px; margin-top:2px; }
+  .stats{ display:grid; grid-template-columns:1fr 1fr 1fr; margin-top:16px;
+          padding-top:14px; border-top:1px solid var(--divider); }
+  .stat{ text-align:center; }
+  .stat + .stat{ border-left:1px solid var(--divider); }
+  .stat .cap{ color:var(--sub); font-size:12px; }
+  .stat .val{ font-size:15.5px; font-weight:600; margin-top:6px;
+              font-variant-numeric:tabular-nums; }
+
+  /* ═════════ 底部 ═════════ */
+  .foot{ display:flex; flex-direction:column; align-items:center; gap:10px; margin-top:2px; }
+  .foot .row{ display:flex; gap:10px; }
+  .pillbtn{ border-radius:999px; padding:11px 24px; font-size:14px;
+            color:var(--text); cursor:pointer; touch-action:manipulation;
+            -webkit-user-select:none; user-select:none;
+            transition:transform .2s, box-shadow .25s, border-color .25s; }
+  .pillbtn:active{ transform:scale(.96); }
+  .status{ font-size:12.5px; color:var(--sub); text-align:center;
+           min-height:1.2em; padding:0 8px; }
+  .status.err{ color:var(--danger); }
+  .credit{ font-size:11.5px; color:var(--sub); opacity:.85; text-align:center; }
+  .author{ margin-top:5px; letter-spacing:.5px; }
+  .author-name{ color:var(--accent); font-weight:600; }
+
+  @media (hover:hover){
+    .btn-accent:hover{ filter:brightness(1.07); box-shadow:0 10px 24px -10px var(--accent); }
+    .btn-round:hover,.pillbtn:hover{ transform:translateY(-1px);
+      box-shadow:0 14px 30px -14px var(--hover-shadow), inset 0 1px 0 var(--gloss); }
+  }
+  @media (prefers-reduced-motion:reduce){
+    .card, .btn-round, .pillbtn{ transition:none !important; }
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))){
+    .glass,.card{ background:var(--card-solid); }
+  }
+
+  /* ═════════ 电脑端双栏 ═════════ */
+  @media (min-width:880px){
+    .app{
+      max-width:1020px; gap:20px; padding:32px 28px;
+      display:grid; grid-template-columns:1.06fr .94fr;
+      grid-template-areas:"top top" "clock weather" "foot foot";
+      align-content:center;
+    }
+    .topbar{ grid-area:top; }
+    #clockCard{ grid-area:clock; display:flex; flex-direction:column; justify-content:center; }
+    #weatherCard{ grid-area:weather; }
+    .foot{ grid-area:foot; }
+    .card{ padding:28px 30px; border-radius:34px; }
+    .clock{ font-size:68px; }
+    .date{ font-size:14.5px; }
+    .temp{ font-size:64px; margin-top:14px; }
+    .tempf{ font-size:15.5px; }
+    .wicon{ font-size:34px; }
+    .wcond{ font-size:18.5px; }
+    .search input{ font-size:15.5px; }
+    .btn-round{ width:50px; height:50px; font-size:21px; }
+    .pillbtn{ padding:12px 26px; }
+  }
+</style>
+</head>
+<body>
+  <div class="bg" aria-hidden="true">
+    <div class="blob b1"></div><div class="blob b2"></div>
+    <div class="blob b3"></div><div class="blob b4"></div>
+  </div>
+
+  <main class="app">
+    <!-- 顶栏 -->
+    <header class="topbar">
+      <div class="search glass">
+        <input id="cityInput" type="text" placeholder="城市, 如: 北京 / Tokyo"
+               autocomplete="off" enterkeyhint="search">
+        <button id="searchBtn" class="btn btn-accent">搜索</button>
+      </div>
+      <button id="themeBtn" class="glass btn-round" title="切换白色 / 黑色背景">☀️</button>
+    </header>
+
+    <!-- 时钟卡片 -->
+    <section class="card glass" id="clockCard">
+      <button class="grip" title="拖动交换两张卡片的位置" aria-label="按住拖动, 与另一张卡片交换位置">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <g fill="currentColor">
+            <circle cx="5" cy="3" r="1.4"/><circle cx="11" cy="3" r="1.4"/>
+            <circle cx="5" cy="8" r="1.4"/><circle cx="11" cy="8" r="1.4"/>
+            <circle cx="5" cy="13" r="1.4"/><circle cx="11" cy="13" r="1.4"/>
+          </g>
+        </svg>
+      </button>
+      <span class="shine" aria-hidden="true"></span>
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="date" id="date">加载中 …</div>
+
+      <div class="tz-block">
+        <div class="tzrow">
+          <label for="tzBtn">时区</label>
+          <button id="tzBtn" class="tz-field" type="button" aria-haspopup="listbox" aria-expanded="false">
+            <span id="tzLabel">Asia/Shanghai</span>
+            <span class="caret" aria-hidden="true">▾</span>
+          </button>
+        </div>
+        <div id="tzPanel" class="tz-panel glass" role="listbox">
+          <div class="tz-head">
+            <div class="tz-search">
+              <svg class="tz-search-ico" viewBox="0 0 20 20" width="15" height="15" aria-hidden="true">
+                <circle cx="9" cy="9" r="5.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                <line x1="13.2" y1="13.2" x2="17" y2="17" stroke="currentColor"
+                      stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+              <input id="tzSearch" type="text" placeholder="搜索时区 / 城市 / UTC" autocomplete="off">
+              <button id="tzClear" class="tz-clear" type="button" aria-label="清空" hidden>✕</button>
+            </div>
+            <button id="tzClose" class="tz-done" type="button">收起</button>
+          </div>
+          <div class="tz-list" id="tzList"></div>
+          <div class="tz-empty" id="tzEmpty" hidden>没有找到匹配的时区</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 天气卡片 -->
+    <section class="card glass" id="weatherCard">
+      <button class="grip" title="拖动交换两张卡片的位置" aria-label="按住拖动, 与另一张卡片交换位置">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <g fill="currentColor">
+            <circle cx="5" cy="3" r="1.4"/><circle cx="11" cy="3" r="1.4"/>
+            <circle cx="5" cy="8" r="1.4"/><circle cx="11" cy="8" r="1.4"/>
+            <circle cx="5" cy="13" r="1.4"/><circle cx="11" cy="13" r="1.4"/>
+          </g>
+        </svg>
+      </button>
+      <span class="shine" aria-hidden="true"></span>
+      <div class="wtop">
+        <span class="wicon" id="wIcon">🌡️</span>
+        <span class="wcond" id="wCond">等待数据 …</span>
+        <span class="wcity" id="wCity"></span>
+      </div>
+      <div class="temp" id="tempC">--.-°C</div>
+      <div class="tempf" id="tempF">≈ --.-°F</div>
+      <div class="stats">
+        <div class="stat"><div class="cap">湿度</div><div class="val" id="hum">--%</div></div>
+        <div class="stat"><div class="cap">体感</div><div class="val" id="feels">--.-°C</div></div>
+        <div class="stat"><div class="cap">风速</div><div class="val" id="wind">-- km/h</div></div>
+      </div>
+    </section>
+
+    <!-- 底部 -->
+    <footer class="foot">
+      <div class="row">
+        <button id="refreshBtn" class="glass pillbtn">↻ 刷新</button>
+        <button id="geoBtn" class="glass pillbtn">📍 定位</button>
+      </div>
+      <div class="status" id="status">正在获取天气 …</div>
+      <div class="credit" id="credit">数据来源 Open-Meteo (免费) · 每 10 分钟自动刷新</div>
+      <div class="credit author">作者 · <span class="author-name">Lumin.Xeno</span> · UI v5</div>
+    </footer>
+  </main>
+
+<script>
+"use strict";
+/* ════════ 配置 ════════ */
+const REFRESH_MS   = 600000;
+const DEFAULT_CITY = "北京";
+
+const COMMON_TZ = [
+  ["Asia/Shanghai","北京 · 上海"], ["Asia/Hong_Kong","香港"], ["Asia/Taipei","台北"],
+  ["Asia/Tokyo","东京"], ["Asia/Seoul","首尔"], ["Asia/Singapore","新加坡"],
+  ["Asia/Bangkok","曼谷"], ["Asia/Dubai","迪拜"], ["Asia/Kolkata","新德里"],
+  ["Australia/Sydney","悉尼"], ["Pacific/Auckland","奥克兰"],
+  ["Europe/London","伦敦"], ["Europe/Paris","巴黎"], ["Europe/Berlin","柏林"],
+  ["Europe/Moscow","莫斯科"],
+  ["America/New_York","纽约"], ["America/Chicago","芝加哥"], ["America/Los_Angeles","洛杉矶"],
+  ["UTC","UTC"],
+];
+
+/* ════════ 状态与存储 ════════ */
+const LS = {
+  get(k,d){ try{ return localStorage.getItem(k) ?? d; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+};
+const state = {
+  city : LS.get("lgw_city",  DEFAULT_CITY),
+  theme: LS.get("lgw_theme", "dark"),
+  tz   : LS.get("lgw_tz",   "Asia/Shanghai"),
+  last : null,
+};
+const $ = id => document.getElementById(id);
+const isNum = v => typeof v === "number" && isFinite(v);
+
+function offLabel(tz){
+  try{
+    const p = new Intl.DateTimeFormat("en-US",{timeZone:tz, timeZoneName:"shortOffset"})
+                .formatToParts(new Date()).find(x=>x.type==="timeZoneName");
+    return (p ? p.value : "").replace("GMT","UTC") || "";
+  }catch(e){ return ""; }
+}
+function setStatus(msg, err){
+  const el = $("status");
+  el.textContent = msg || "";
+  el.classList.toggle("err", !!err);
+}
+function vibrate(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+async function fetchJSON(url){
+  const r = await fetch(url, {cache:"no-store"});
+  if(!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+
+/* ════════ 天气代码 ════════ */
+function weatherInfo(code, isDay){
+  const m = {
+    0:["晴", isDay?"☀️":"🌙"], 1:["晴间多云", isDay?"🌤️":"🌙"],
+    2:["多云","⛅"], 3:["阴","☁️"],
+    45:["雾","🌫️"], 48:["雾凇","🌫️"],
+    51:["毛毛雨","🌦️"], 53:["毛毛雨","🌦️"], 55:["浓毛毛雨","🌦️"],
+    56:["冻毛毛雨","🌦️"], 57:["冻毛毛雨","🌦️"],
+    61:["小雨","🌧️"], 63:["中雨","🌧️"], 65:["大雨","🌧️"],
+    66:["冻雨","🌧️"], 67:["冻雨","🌧️"],
+    71:["小雪","🌨️"], 73:["中雪","🌨️"], 75:["大雪","❄️"], 77:["米雪","🌨️"],
+    80:["阵雨","🌦️"], 81:["强阵雨","🌧️"], 82:["暴阵雨","⛈️"],
+    85:["阵雪","🌨️"], 86:["强阵雪","🌨️"],
+    95:["雷阵雨","⛈️"], 96:["雷暴冰雹","⛈️"], 99:["雷暴冰雹","⛈️"],
+  };
+  const v = m[code];
+  return v ? {text:v[0], icon:v[1]} : {text:"未知", icon:"🌡️"};
+}
+
+/* ════════ 主题 ════════ */
+function applyTheme(th){
+  state.theme = th;
+  document.documentElement.dataset.theme = th;
+  LS.set("lgw_theme", th);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.content = (th === "dark") ? "#0b0f1a" : "#eef3ff";
+  $("themeBtn").textContent = (th === "dark") ? "☀️" : "🌙";
+  $("themeBtn").title = (th === "dark") ? "切换到白色背景" : "切换到黑色背景";
+}
+function toggleTheme(){
+  applyTheme(state.theme === "dark" ? "light" : "dark");
+  setStatus("背景: " + (state.theme === "light" ? "白色" : "黑色"));
+}
+
+/* ════════ 时区面板 ════════ */
+let tzOpen = false, tzItemsBuilt = false;
+
+function tzAllList(){
+  let all = [];
+  try{ if(Intl.supportedValuesOf) all = Intl.supportedValuesOf("timeZone"); }catch(e){}
+  const common = new Set(COMMON_TZ.map(c => c[0]));
+  return all.filter(t => !common.has(t));
+}
+function makeTzItem(tz, name, sub){
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "tz-item";
+  b.dataset.tz = tz;
+  b.dataset.search = (name + " " + (sub||"") + " " + tz + " " + offLabel(tz)).toLowerCase();
+
+  const meta = document.createElement("span"); meta.className = "tz-meta";
+  const n = document.createElement("span"); n.className = "tz-name"; n.textContent = name;
+  meta.appendChild(n);
+  if(sub && sub !== name){
+    const s = document.createElement("span"); s.className = "tz-sub"; s.textContent = sub;
+    meta.appendChild(s);
+  }
+  const side = document.createElement("span"); side.className = "tz-side";
+  const o = document.createElement("span"); o.className = "tz-off"; o.textContent = offLabel(tz) || "";
+  const ck = document.createElement("span"); ck.className = "tz-check"; ck.textContent = "✓";
+  side.append(o, ck);
+  b.append(meta, side);
+
+  b.addEventListener("click", ()=>{
+    vibrate(8);
+    setTz(tz);
+    closeTzPanel();
+    setStatus("时区已切换: " + name);
+  });
+  return b;
+}
+function buildTzPanel(){
+  if(tzItemsBuilt) return;
+  const list = $("tzList");
+  const frag = document.createDocumentFragment();
+  const addGroup = (title, items)=>{
+    const h = document.createElement("div");
+    h.className = "tz-group"; h.textContent = title;
+    frag.appendChild(h);
+    items.forEach(([tz,name,sub]) => frag.appendChild(makeTzItem(tz, name, sub || tz)));
+  };
+  addGroup("常用时区", COMMON_TZ.map(([tz,n]) => [tz, n, tz]));
+  addGroup("全部时区", tzAllList().map(tz => [tz, tz.split("/").pop().replace(/_/g," "), tz]));
+  list.appendChild(frag);
+  tzItemsBuilt = true;
+  updateTzActive();
+}
+function filterTzList(q){
+  q = (q || "").trim().toLowerCase();
+  const list = $("tzList");
+  const children = [...list.children];
+  let visible = 0;
+  children.forEach(el=>{
+    if(el.classList.contains("tz-item")){
+      const show = !q || el.dataset.search.includes(q);
+      el.style.display = show ? "" : "none";
+      if(show) visible++;
+    }
+  });
+  let header = null;
+  children.forEach(el=>{
+    if(el.classList.contains("tz-group")){
+      if(header) header.style.display = header._has ? "" : "none";
+      header = el; el._has = false;
+    }else if(header && el.style.display !== "none"){
+      header._has = true;
+    }
+  });
+  if(header) header.style.display = header._has ? "" : "none";
+  $("tzEmpty").hidden = !(q && visible === 0);
+  $("tzClear").hidden = !q;
+}
+function updateTzActive(){
+  if(!tzItemsBuilt) return;
+  document.querySelectorAll("#tzList .tz-item").forEach(b=>{
+    b.classList.toggle("active", b.dataset.tz === state.tz);
+  });
+}
+function scrollActiveIntoView(){
+  const list = $("tzList");
+  const it = list.querySelector(".tz-item.active");
+  if(!it) return;
+  list.scrollTop = Math.max(0, it.offsetTop - list.clientHeight/2 + it.offsetHeight/2);
+}
+function openTzPanel(){
+  buildTzPanel();
+  $("tzSearch").value = "";
+  filterTzList("");
+  updateTzActive();
+  $("tzPanel").classList.add("open");
+  $("tzBtn").setAttribute("aria-expanded","true");
+  $("clockCard").classList.add("tz-open");
+  tzOpen = true;
+  vibrate(6);
+  requestAnimationFrame(()=>{
+    scrollActiveIntoView();
+    const r = $("tzPanel").getBoundingClientRect();
+    if(r.bottom > innerHeight - 8){
+      window.scrollBy({top: Math.min(r.bottom - innerHeight + 24, r.height), behavior:"smooth"});
+    }
+  });
+  if(window.matchMedia && matchMedia("(hover:hover) and (pointer:fine)").matches){
+    $("tzSearch").focus();
+  }
+}
+function closeTzPanel(){
+  $("tzPanel").classList.remove("open");
+  $("tzBtn").setAttribute("aria-expanded","false");
+  $("clockCard").classList.remove("tz-open");
+  tzOpen = false;
+}
+function ensureTzItem(tz, name){
+  if(!tzItemsBuilt) return;
+  if(document.querySelector('#tzList .tz-item[data-tz="' + tz + '"]')) return;
+  const list = $("tzList");
+  let g = list.querySelector('.tz-group[data-extra="1"]');
+  if(!g){
+    g = document.createElement("div");
+    g.className = "tz-group"; g.dataset.extra = "1"; g.textContent = "其他";
+    list.appendChild(g);
+  }
+  list.appendChild(makeTzItem(tz, name, tz));
+}
+function setTz(tz){
+  if(!tz) return;
+  try{ new Intl.DateTimeFormat("en-US",{timeZone:tz}); }catch(e){ return; }
+  state.tz = tz;
+  LS.set("lgw_tz", tz);
+  const common = COMMON_TZ.find(c => c[0] === tz);
+  const name = common ? common[1] : tz.split("/").pop().replace(/_/g," ");
+  ensureTzItem(tz, name);
+  $("tzLabel").textContent = name + (offLabel(tz) ? " · " + offLabel(tz) : "");
+  updateTzActive();
+  tickLoop();
+}
+
+/* ════════ 时钟 ════════ */
+function tickLoop(){
+  const now = new Date();
+  let hms, dstr;
+  try{
+    hms  = new Intl.DateTimeFormat("en-GB",{timeZone:state.tz, hour:"2-digit",
+              minute:"2-digit", second:"2-digit", hourCycle:"h23"}).format(now);
+    dstr = new Intl.DateTimeFormat("zh-CN",{timeZone:state.tz, dateStyle:"full"}).format(now);
+  }catch(e){
+    hms  = now.toTimeString().slice(0,8);
+    dstr = now.toDateString();
+  }
+  const p = hms.split(":");
+  $("clock").innerHTML = p[0] + '<span class="colon">:</span>' + p[1] +
+                         '<span class="colon">:</span>' + p[2];
+  const off = offLabel(state.tz);
+  $("date").textContent = dstr + (off ? "  ·  " + off : "");
+}
+
+/* ════════ 天气 ════════ */
+async function loadWeather(lat, lon, name, applyTz){
+  const url = "https://api.open-meteo.com/v1/forecast"
+    + "?latitude="  + lat
+    + "&longitude=" + lon
+    + "&current=temperature_2m,relative_humidity_2m,apparent_temperature,"
+    + "is_day,weather_code,wind_speed_10m"
+    + "&timezone=auto";
+  const w = await fetchJSON(url);
+  const c = w.current;
+  if(!c) throw new Error("天气数据解析失败");
+
+  const code = (c.weather_code == null) ? null : Number(c.weather_code);
+  const info = weatherInfo(code, Number(c.is_day ?? 1) === 1);
+
+  $("wIcon").textContent = info.icon;
+  $("wCond").textContent = info.text;
+  $("wCity").textContent = name || "当前位置";
+
+  const t = c.temperature_2m;
+  $("tempC").textContent = isNum(t) ? t.toFixed(1)+"°C" : "--.-°C";
+  $("tempF").textContent = isNum(t) ? "≈ "+(t*9/5+32).toFixed(1)+"°F" : "≈ --.-°F";
+  $("hum").textContent   = isNum(c.relative_humidity_2m)
+                             ? Math.round(c.relative_humidity_2m)+"%" : "--%";
+  $("feels").textContent = isNum(c.apparent_temperature)
+                             ? c.apparent_temperature.toFixed(1)+"°C" : "--.-°C";
+  $("wind").textContent  = isNum(c.wind_speed_10m)
+                             ? c.wind_speed_10m.toFixed(1)+" km/h" : "-- km/h";
+
+  if(applyTz && w.timezone) setTz(w.timezone);
+
+  let stamp = "--:--:--";
+  try{
+    stamp = new Intl.DateTimeFormat("en-GB",{timeZone:state.tz, hour:"2-digit",
+              minute:"2-digit", second:"2-digit", hourCycle:"h23"}).format(new Date());
+  }catch(e){}
+  $("credit").textContent = "更新于 " + stamp + " · Open-Meteo 免费数据 · 每 10 分钟自动刷新";
+}
+
+function composeName(loc){
+  let n = loc.name || "";
+  const a = loc.admin1 || "";
+  if(a && a !== n && !a.startsWith(n)) n += " · " + a;
+  if(loc.country && loc.country !== "中国") n += " · " + loc.country;
+  return n;
+}
+
+async function searchCity(name, opts){
+  opts = opts || {};
+  name = String(name || "").trim();
+  if(!name){ setStatus("请输入城市名", true); return; }
+  setStatus("正在获取「"+name+"」…");
+  try{
+    const g = await fetchJSON("https://geocoding-api.open-meteo.com/v1/search"
+      + "?name=" + encodeURIComponent(name) + "&count=1&language=zh&format=json");
+    const loc = (g.results || [])[0];
+    if(!loc){ setStatus("未找到城市: " + name, true); return; }
+
+    state.city = name;
+    LS.set("lgw_city", name);
+    $("cityInput").value = name;
+    $("cityInput").blur();
+    state.last = {type:"city", city:name};
+
+    const disp = composeName(loc);
+    await loadWeather(loc.latitude, loc.longitude, disp, opts.applyTz === true);
+    setStatus("✔ 已更新 · " + disp);
+  }catch(e){
+    setStatus("请求失败: " + (e && e.message ? e.message : e), true);
+  }
+}
+
+async function refreshWeather(){
+  const last = state.last;
+  try{
+    if(!last){ await searchCity(state.city || DEFAULT_CITY, {applyTz:false}); return; }
+    setStatus("正在刷新 …");
+    if(last.type === "city"){
+      await searchCity(last.city, {applyTz:false});
+    }else{
+      await loadWeather(last.lat, last.lon, last.name, false);
+      setStatus("✔ 已更新 · 当前位置");
+    }
+  }catch(e){
+    setStatus("刷新失败: " + (e && e.message ? e.message : e), true);
+  }
+}
+
+/* ════════ 定位 ════════ */
+function locate(){
+  if(!navigator.geolocation){ setStatus("此浏览器不支持定位, 请直接搜索城市", true); return; }
+  setStatus("正在定位 …");
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try{
+      const lat = pos.coords.latitude, lon = pos.coords.longitude;
+      state.last = {type:"coords", lat:lat, lon:lon, name:"📍 当前位置"};
+      await loadWeather(lat, lon, "📍 当前位置", true);
+      setStatus("✔ 已更新 · 当前位置");
+    }catch(e){
+      setStatus("天气获取失败: " + (e && e.message ? e.message : e), true);
+    }
+  }, err=>{
+    setStatus("定位失败: 请检查定位权限 (若用文件方式打开被浏览器禁止, 改用城市搜索即可)", true);
+  }, {timeout:10000, maximumAge:600000});
+}
+
+/* ════════ 卡片拖动排序(手机上下互换 / 电脑左右互换) ════════ */
+let dragState = null;
+
+function applyOrder(){
+  const sw = LS.get("lgw_order","cw") === "wc";
+  /* 手机(单列, flex): 用 order 控制上下顺序 */
+  $("clockCard").style.order    = sw ? "2" : "1";
+  $("weatherCard").style.order  = sw ? "1" : "2";
+  /* 电脑(双栏, grid): 用 grid-area 互换左右位置 */
+  $("clockCard").style.gridArea   = sw ? "weather" : "clock";
+  $("weatherCard").style.gridArea = sw ? "clock"   : "weather";
+}
+function initCardDrag(){
+  document.querySelectorAll(".grip").forEach(grip=>{
+    grip.addEventListener("pointerdown", e=>{
+      e.preventDefault();
+      const card = grip.closest(".card");
+      const other = (card === $("clockCard")) ? $("weatherCard") : $("clockCard");
+      const rc = card.getBoundingClientRect(), ro = other.getBoundingClientRect();
+      /* 自动判断方向: 左右并排 → 横着挪; 上下排列 → 竖着挪 */
+      const sideBySide = Math.abs(rc.top - ro.top) < Math.min(rc.height, ro.height) * 0.5
+                         && Math.abs(rc.left - ro.left) > 20;
+      dragState = {card:card, other:other, startX:e.clientX, startY:e.clientY,
+                   dx:0, dy:0, id:e.pointerId, willSwap:false,
+                   axis: sideBySide ? "x" : "y"};
+      try{ grip.setPointerCapture(e.pointerId); }catch(_){}
+      card.classList.add("dragging");
+    });
+    grip.addEventListener("pointermove", e=>{
+      if(!dragState || e.pointerId !== dragState.id) return;
+      e.preventDefault();
+      const dx = e.clientX - dragState.startX;
+      const dy = e.clientY - dragState.startY;
+      dragState.dx = dx; dragState.dy = dy;
+      const tx = dragState.axis === "x" ? dx : 0;
+      const ty = dragState.axis === "y" ? dy : 0;
+      dragState.card.style.transform = "translate(" + tx + "px," + ty + "px) scale(1.02)";
+      const r = dragState.other.getBoundingClientRect();
+      const d = dragState.axis === "x" ? dx : dy;
+      const th = (dragState.axis === "x" ? r.width : r.height) * 0.3;
+      if(Math.abs(d) > th){
+        dragState.willSwap = true;
+        const sign = d > 0 ? 1 : -1;
+        const ox = dragState.axis === "x" ? -sign*12 : 0;
+        const oy = dragState.axis === "y" ? -sign*12 : 0;
+        dragState.other.style.transform = "translate(" + ox + "px," + oy + "px)";
+        dragState.other.style.opacity = "0.75";
+      }else{
+        dragState.willSwap = false;
+        dragState.other.style.transform = "";
+        dragState.other.style.opacity = "";
+      }
+    });
+    const finish = e=>{
+      if(!dragState) return;
+      if(e.pointerId !== undefined && e.pointerId !== dragState.id) return;
+      const card = dragState.card, other = dragState.other;
+      const dx = dragState.dx, dy = dragState.dy;
+      const axis = dragState.axis, swap = dragState.willSwap;
+      const firstA = card.getBoundingClientRect();
+      const firstB = other.getBoundingClientRect();
+      card.classList.remove("dragging");
+      card.style.transform = "";
+      other.style.transform = "";
+      other.style.opacity = "";
+      if(swap){
+        LS.set("lgw_order", LS.get("lgw_order","cw") === "wc" ? "cw" : "wc");
+        applyOrder();
+      }
+      const lastA = card.getBoundingClientRect();
+      const lastB = other.getBoundingClientRect();
+      [[card, firstA, lastA, true], [other, firstB, lastB, false]].forEach(([el,f,l,isMoved])=>{
+        const ddx = f.left - l.left, ddy = f.top - l.top;
+        if(Math.abs(ddx) > 1 || Math.abs(ddy) > 1){
+          el.animate(
+            [{transform:"translate(" + ddx + "px," + ddy + "px)" + (isMoved ? " scale(1.02)" : "")},
+             {transform:"translate(0,0) scale(1)"}],
+            {duration:340, easing:"cubic-bezier(.22,1.08,.36,1)"});
+        }
+      });
+      if(swap){
+        vibrate(12);
+        setStatus("已交换卡片位置 · 可再次拖动换回");
+      }else{
+        const d = axis === "x" ? dx : dy;
+        if(Math.abs(d) > 40){
+          const tx = axis === "x" ? dx : 0;
+          const ty = axis === "y" ? dy : 0;
+          card.animate([{transform:"translate(" + tx + "px," + ty + "px) scale(1.02)"},
+                        {transform:"translate(0,0) scale(1)"}],
+                       {duration:280, easing:"cubic-bezier(.22,1,.36,1)"});
+        }
+      }
+      dragState = null;
+    };
+    grip.addEventListener("pointerup", finish);
+    grip.addEventListener("pointercancel", finish);
+  });
+}
+
+/* ════════ 桌面端光影 ════════ */
+function bindGlassFX(){
+  if(!(window.matchMedia && matchMedia("(hover:hover) and (pointer:fine)").matches)) return;
+  document.querySelectorAll(".card").forEach(card=>{
+    card.addEventListener("pointermove", e=>{
+      const r = card.getBoundingClientRect();
+      if(!r.width || !r.height) return;
+      const x = (e.clientX - r.left) / r.width;
+      const y = (e.clientY - r.top)  / r.height;
+      card.style.setProperty("--mx", (x*100).toFixed(1) + "%");
+      card.style.setProperty("--my", (y*100).toFixed(1) + "%");
+      card.style.setProperty("--rx", ((0.5 - y) * 2.2).toFixed(2) + "deg");
+      card.style.setProperty("--ry", ((x - 0.5) * 2.2).toFixed(2) + "deg");
+    }, {passive:true});
+    card.addEventListener("pointerleave", ()=>{
+      card.style.setProperty("--rx", "0deg");
+      card.style.setProperty("--ry", "0deg");
+    });
+  });
+}
+
+/* ════════ 启动 ════════ */
+(function init(){
+  if(!state.tz) state.tz = "Asia/Shanghai";
+  const firstRun = !LS.get("lgw_tz", "");
+
+  applyTheme(state.theme);
+  applyOrder();
+  setTz(state.tz);
+  tickLoop();
+  setInterval(tickLoop, 250);
+  initCardDrag();
+  bindGlassFX();
+
+  $("cityInput").value = state.city;
+  $("searchBtn").addEventListener("click", ()=>searchCity($("cityInput").value, {applyTz:true}));
+  $("cityInput").addEventListener("keydown", e=>{
+    if(e.key === "Enter") searchCity($("cityInput").value, {applyTz:true});
+  });
+  $("themeBtn").addEventListener("click", toggleTheme);
+  $("refreshBtn").addEventListener("click", refreshWeather);
+  $("geoBtn").addEventListener("click", locate);
+
+  $("tzBtn").addEventListener("click", ()=>{ tzOpen ? closeTzPanel() : openTzPanel(); });
+  $("tzClose").addEventListener("click", closeTzPanel);
+  $("tzSearch").addEventListener("input", e=>filterTzList(e.target.value));
+  $("tzClear").addEventListener("click", ()=>{
+    $("tzSearch").value = ""; filterTzList(""); $("tzSearch").focus();
+  });
+  document.addEventListener("pointerdown", e=>{
+    if(!tzOpen) return;
+    if(e.target.closest("#tzPanel") || e.target.closest("#tzBtn")) return;
+    closeTzPanel();
+  });
+  document.addEventListener("keydown", e=>{
+    if(e.key === "Escape" && tzOpen) closeTzPanel();
+  });
+
+  searchCity(state.city || DEFAULT_CITY, {applyTz:firstRun});
+  setInterval(refreshWeather, REFRESH_MS);
+})();
+</script>
+</body>
+</html>
